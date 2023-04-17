@@ -25,7 +25,7 @@ def on_log(client, userdata, level, buf):
 def on_message(client, userdata, msg):
     print(msg.topic + " " + str(msg.payload))
 
-def sip_message(ip_dst, ip_src, CallID, mf, contact, cseq):
+def sip_message(ip_dst, ip_src, CallID, mf, contact, cseq, iface):
     sourcePort = 3001
     destinationIp = ip_dst
     sourceIp = ip_src
@@ -41,7 +41,7 @@ def sip_message(ip_dst, ip_src, CallID, mf, contact, cseq):
         'Contact: <sip:'+ contact +'@pc33.atlanta.com>\r\n'
         'Content-Length: 0\r\n\r\n').format(destinationIp)
     udp = UDP(dport=5060, sport=sourcePort)
-    send(ip / udp / myPayload)
+    send(ip / udp / myPayload, iface=iface)
 
 
 def mqtt_message(broker, id, user, psw, topic, payload, keepalive, retainval):
@@ -73,7 +73,7 @@ def mqtt_subscribe(ip, id, user, psw, topic, clean):
     client.loop_forever()
 
 
-def cmd_ping(ip_dst, ip_src, seq, icmp_id):
+def cmd_ping(ip_dst, ip_src, seq, icmp_id, iface):
     conf.verb = False
 
     layer3 = IP()
@@ -92,11 +92,11 @@ def cmd_ping(ip_dst, ip_src, seq, icmp_id):
     layer4.id = icmp_id
     layer4.seq = seq
     pkt = layer3 / layer4 / b"abcdefghijklmn opqrstuvwabcdefg hi"
-    send(pkt)
+    send(pkt, iface=iface)
     print("Ping Sent")
 
 
-def cmd_tcpip(ip_src, ip_dst, TOS, ttl, id, reserved, seq_num, window, urg_ptr, flags, payload, src_port):
+def cmd_tcpip(ip_src, ip_dst, TOS, ttl, id, reserved, seq_num, window, urg_ptr, flags, payload, src_port, iface):
     layer3 = IP()
     layer3.src = ip_src
     layer3.dst = ip_dst
@@ -125,13 +125,13 @@ def cmd_tcpip(ip_src, ip_dst, TOS, ttl, id, reserved, seq_num, window, urg_ptr, 
         pkt = layer3 / layer4
     else:
         pkt = layer3 / layer4 / payload
-    send(pkt)
+    send(pkt, iface=iface)
 
 if __name__ == "__main__":
     
 
-    ip_src = "192.168.1.21"
-    ip_dst = "192.168.1.1"
+    ip_src = "192.168.7.245"
+    ip_dst = "192.168.7.245"
     TOS = 23
     ttl = 124
     id = 41241
@@ -170,4 +170,4 @@ if __name__ == "__main__":
             cseq =  str(ord(char))
             #seq_num = seq_num + 1
             #cmd_tcpip(ip_src, ip_dst, TOS, ttl, id, reserved, seq_num, window, urg_ptr, flags, payload, src_port)
-            sip_message(ip_dst, ip_src, CallID, mf, contact, cseq)
+            sip_message(ip_dst, ip_src, CallID, mf, contact, cseq, "Ethernet 2")
