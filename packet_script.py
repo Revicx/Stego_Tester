@@ -4,7 +4,6 @@ from time import sleep
 from tkinter import *
 from scapy.all import *
 from scapy.layers.inet import ICMP, IP, TCP, UDP
-import os
 import subprocess
 from datetime import datetime
 
@@ -28,23 +27,25 @@ def on_log(client, userdata, level, buf):
 def on_message(client, userdata, msg):
     print(msg.topic + " " + str(msg.payload))
 
+
 def sip_message(ip_dst, ip_src, CallID, mf, contact, cseq, iface):
     sourcePort = 3001
     destinationIp = ip_dst
     sourceIp = ip_src
     ip = IP(src=sourceIp, dst=destinationIp)
     myPayload = (
-        'INVITE sip:{0}:5060;transport=tcp SIP/2.0\r\n'
-        'Via: SIP/2.0/UDP 192.168.44.32:5060;branch=1234\r\n'
-        'From: \"somedevice\"<sip:somedevice@1.1.1.1:5060>;tag=5678\r\n'
-        'To: <sip:{0}:5060>\r\n'
-        'Call-ID: '+ CallID +' \r\n'
-        'CSeq: 1 INVITE\r\n'
-        'Max-Forwards: '+ mf +'\r\n'
-        'Contact: <sip:'+ contact +'@pc33.atlanta.com>\r\n'
-        'Content-Length: 0\r\n\r\n').format(destinationIp)
+        "INVITE sip:{0}:5060;transport=tcp SIP/2.0\r\n"
+        "Via: SIP/2.0/UDP 192.168.44.32:5060;branch=1234\r\n"
+        'From: "somedevice"<sip:somedevice@1.1.1.1:5060>;tag=5678\r\n'
+        "To: <sip:{0}:5060>\r\n"
+        "Call-ID: " + CallID + " \r\n"
+        "CSeq: {1} INVITE\r\n"
+        "Max-Forwards: " + mf + "\r\n"
+        "Contact: <sip:" + contact + "@pc33.atlanta.com>\r\n"
+        "Content-Length: 0\r\n\r\n"
+    ).format(destinationIp, cseq)
     udp = UDP(dport=5060, sport=sourcePort)
-    send(ip / udp / myPayload, iface=iface)
+    send(ip / udp / myPayload, iface)
 
 
 def mqtt_message(broker, id, user, psw, topic, payload, keepalive, retainval):
@@ -93,6 +94,7 @@ def create_layer3(src_ip, dst_ip, proto, tos=None, ttl=None, id=None):
 
     return layer3
 
+
 def create_icmp_layer4(type, code, id, seq):
     layer4 = ICMP()
     layer4.type = type
@@ -101,6 +103,7 @@ def create_icmp_layer4(type, code, id, seq):
     layer4.seq = seq
 
     return layer4
+
 
 def create_tcp_layer4(src_port, dst_port, reserved, flags, window, urg_ptr, seq_num):
     layer4 = TCP()
@@ -114,6 +117,7 @@ def create_tcp_layer4(src_port, dst_port, reserved, flags, window, urg_ptr, seq_
 
     return layer4
 
+
 def cmd_ping(ip_dst, ip_src, seq, icmp_id, iface):
     layer3 = create_layer3(ip_src, ip_dst, 1)
     layer4 = create_icmp_layer4(8, 0, icmp_id, seq)
@@ -121,7 +125,22 @@ def cmd_ping(ip_dst, ip_src, seq, icmp_id, iface):
     send(pkt, iface=iface)
     print("Ping Sent")
 
-def cmd_tcpip(ip_src, ip_dst, TOS, ttl, id, reserved, seq_num, window, urg_ptr, flags, payload, src_port, iface):
+
+def cmd_tcpip(
+    ip_src,
+    ip_dst,
+    TOS,
+    ttl,
+    id,
+    reserved,
+    seq_num,
+    window,
+    urg_ptr,
+    flags,
+    payload,
+    src_port,
+    iface,
+):
     layer3 = create_layer3(ip_src, ip_dst, 6, tos=TOS, ttl=ttl, id=id)
     layer4 = create_tcp_layer4(src_port, 80, reserved, flags, window, urg_ptr, seq_num)
 
@@ -133,6 +152,13 @@ def cmd_tcpip(ip_src, ip_dst, TOS, ttl, id, reserved, seq_num, window, urg_ptr, 
     send(pkt, iface=iface)
 
 
+def start_capture(tshark_path, interface, capture_file_path):
+    interface = f'"{interface}"'
+    command = "%s -i %s -w %s" % (tshark_path, interface, capture_file_path)
+    proc = subprocess.Popen(command)
+    return proc
+
+
 def main():
     # Define the variables for the function calls
     ip_src = "127.0.0.1"
@@ -140,21 +166,22 @@ def main():
     CallID = "hello"
     mf = "100"
     contact = "alice@sip.pl"
-    iface = "lo"
+    iface = "Ethernet 2"
 
     # Define messages to send
     messages = [
         "Longer test.",
     ]
 
-    # Start capturing on the same port with tshark
-    capture_time = datetime.now().strftime('%d.%m.%Y_%H:%M:%S')
-    capture_dir = os.path.expanduser("root/Stego_Tester/")
-    capture_file = os.path.join(capture_dir, f"{capture_time}_capture.pcap")
-    print(capture_file)
-    tshark_cmd = f"tshark -i {iface} -w {capture_file}"
-    tshark_process = subprocess.Popen(tshark_cmd.split())
+    # Set the path to tshark.exe
+    tshark_path = r'"C:\Program Files\Wireshark\tshark.exe"'
+    current_date = datetime.now().strftime("%d-%m-%Y_%H-%M-%S")
+    filename = f"capture_{current_date}.pcap"
+    capture_file_path = rf"C:\Users\John\Documents\Repos\Stego_Tester\{filename}"
 
+    proc = start_capture(tshark_path, iface, capture_file_path)
+
+    time.sleep(1)
     for msg in messages:
         message = msg
         for char in list(message):
@@ -162,9 +189,10 @@ def main():
             cseq = str(ord(char))
             # Call the sip_message() function with the parameters
             sip_message(ip_dst, ip_src, CallID, mf, contact, cseq, iface)
+    time.sleep(1)
+    # Terminate the tshark process
+    proc.terminate()
 
-    # Stop capturing the traffic with tshark
-    tshark_process.terminate()
 
 if __name__ == "__main__":
     main()
