@@ -4,6 +4,9 @@ from time import sleep
 from tkinter import *
 from scapy.all import *
 from scapy.layers.inet import ICMP, IP, TCP, UDP
+import os
+import subprocess
+from datetime import datetime
 
 
 # The callback for when the client receives a CONNACK response from the server.
@@ -130,47 +133,38 @@ def cmd_tcpip(ip_src, ip_dst, TOS, ttl, id, reserved, seq_num, window, urg_ptr, 
     send(pkt, iface=iface)
 
 
-if __name__ == "__main__":
-    
-
-    ip_src = "192.168.7.245"
-    ip_dst = "192.168.7.245"
-    TOS = 23
-    ttl = 124
-    id = 41241
-    reserved = '0'
-    seq_num = 1332132
-    window = 1134
-    src_port = 12356
-    payload = "elo"
-    flags = ''
-    urg_ptr = "1"
-
+def main():
+    # Define the variables for the function calls
+    ip_src = "127.0.0.1"
+    ip_dst = "127.0.0.1"
     CallID = "hello"
     mf = "100"
     contact = "alice@sip.pl"
+    iface = "lo"
 
+    # Define messages to send
+    messages = [
+        "Longer test.",
+    ]
 
-    messages = [#"10",
-    #         "test"
-             "Longer test.",
-    #           "I want to be there."
-    #            "Bar is a nice to place to hang out.",
-    #            "Hello my name is TK, who are you?",
-    #            "Dan ate the clouds like cotton candy.",
-    #            "As the years pass by, we all know owners look more and more like their dogs.",
-    #            "Yesterday I was on a trip and generally it was cool. Someday I want to go there again.",
-    #            "She wasn't sure whether to be impressed or concerned that he folded t-shirts in.",
-    #            "She wasn't sure whether to be impressed or concerned that he folded t-shirts in neat little packages.",
-    #            "I'm troubleshooting a connection between a client PC and an HTTP server. In this example, the client is requesting a file and only receives a few KB before the connection is reset.",
-    #            "This has all the tell tale signs of a MTU issue where the tunnel requires a smaller MTU but fails to learn that. A capture on the sending end should show the ICMP traffic giving this away.",
-    #            "The real issue is to determine why the client, 192.168.120.105, is not responding to the larger TCP segment(s). Try to capture at 192.168.120.105, to verify if the server's larger TCP segment made it"
-                ]
+    # Start capturing on the same port with tshark
+    capture_time = datetime.now().strftime('%d.%m.%Y_%H:%M:%S')
+    capture_dir = os.path.expanduser("root/Stego_Tester/")
+    capture_file = os.path.join(capture_dir, f"{capture_time}_capture.pcap")
+    print(capture_file)
+    tshark_cmd = f"tshark -i {iface} -w {capture_file}"
+    tshark_process = subprocess.Popen(tshark_cmd.split())
+
     for msg in messages:
         message = msg
-        for char  in list(message):
-            print (char)
-            cseq =  str(ord(char))
-            #seq_num = seq_num + 1
-            #cmd_tcpip(ip_src, ip_dst, TOS, ttl, id, reserved, seq_num, window, urg_ptr, flags, payload, src_port)
-            sip_message(ip_dst, ip_src, CallID, mf, contact, cseq, "Ethernet 2")
+        for char in list(message):
+            print(char)
+            cseq = str(ord(char))
+            # Call the sip_message() function with the parameters
+            sip_message(ip_dst, ip_src, CallID, mf, contact, cseq, iface)
+
+    # Stop capturing the traffic with tshark
+    tshark_process.terminate()
+
+if __name__ == "__main__":
+    main()
