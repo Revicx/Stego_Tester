@@ -73,59 +73,62 @@ def mqtt_subscribe(ip, id, user, psw, topic, clean):
     client.loop_forever()
 
 
-def cmd_ping(ip_dst, ip_src, seq, icmp_id, iface):
-    conf.verb = False
-
+def create_layer3(src_ip, dst_ip, proto, tos=None, ttl=None, id=None):
     layer3 = IP()
-    layer3.src = ip_src
-    layer3.dst = ip_dst
-    layer3.tos = 0
-    layer3.id = 1
-    layer3.flags = 0
-    layer3.frag = 0
-    layer3.ttl = 128
-    layer3.proto = 1  # icmp
+    layer3.src = src_ip
+    layer3.dst = dst_ip
+    layer3.proto = proto
 
+    if tos is not None:
+        layer3.tos = tos
+
+    if ttl is not None:
+        layer3.ttl = ttl
+
+    if id is not None:
+        layer3.id = id
+
+    return layer3
+
+def create_icmp_layer4(type, code, id, seq):
     layer4 = ICMP()
-    layer4.type = 8  # echo-request
-    layer4.code = 0
-    layer4.id = icmp_id
+    layer4.type = type
+    layer4.code = code
+    layer4.id = id
     layer4.seq = seq
-    pkt = layer3 / layer4 / b"abcdefghijklmn opqrstuvwabcdefg hi"
-    send(pkt, iface=iface)
-    print("Ping Sent")
 
+    return layer4
 
-def cmd_tcpip(ip_src, ip_dst, TOS, ttl, id, reserved, seq_num, window, urg_ptr, flags, payload, src_port, iface):
-    layer3 = IP()
-    layer3.src = ip_src
-    layer3.dst = ip_dst
-    tos_num = TOS
-    print(tos_num)
-    layer3.tos = tos_num
-    layer3.ttl = ttl
-    layer3.ihl = 5
-    layer3.id = id
-
+def create_tcp_layer4(src_port, dst_port, reserved, flags, window, urg_ptr, seq_num):
     layer4 = TCP()
-    layer4.dport = 80
     layer4.sport = src_port
-    num = int(reserved, 2)
-    binary_num = bin(num)
-    print(binary_num)
-    layer4.reserved = num
-    #    layer4.flags = "S"
+    layer4.dport = dst_port
+    layer4.reserved = int(reserved, 2)
     layer4.flags = flags
     layer4.window = window
     layer4.urgptr = int(urg_ptr, 2)
     layer4.seq = seq_num
 
-    print("1")
+    return layer4
+
+def cmd_ping(ip_dst, ip_src, seq, icmp_id, iface):
+    layer3 = create_layer3(ip_src, ip_dst, 1)
+    layer4 = create_icmp_layer4(8, 0, icmp_id, seq)
+    pkt = layer3 / layer4 / b"abcdefghijklmn opqrstuvwabcdefg hi"
+    send(pkt, iface=iface)
+    print("Ping Sent")
+
+def cmd_tcpip(ip_src, ip_dst, TOS, ttl, id, reserved, seq_num, window, urg_ptr, flags, payload, src_port, iface):
+    layer3 = create_layer3(ip_src, ip_dst, 6, tos=TOS, ttl=ttl, id=id)
+    layer4 = create_tcp_layer4(src_port, 80, reserved, flags, window, urg_ptr, seq_num)
+
     if not payload:
         pkt = layer3 / layer4
     else:
         pkt = layer3 / layer4 / payload
+
     send(pkt, iface=iface)
+
 
 if __name__ == "__main__":
     
