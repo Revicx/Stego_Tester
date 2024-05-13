@@ -145,8 +145,8 @@ def cmd_ping(ip_dst, ip_src, seq, icmp_id, iface):
 
 
 def cmd_tcpip(
-    ip_src,  # Source IP address
     ip_dst,  # Destination IP address
+    ip_src,  # Source IP address
     TOS,  # Type of service for IP packet
     ttl,  # Time to live for IP packet
     id,  # Identification number for IP packet
